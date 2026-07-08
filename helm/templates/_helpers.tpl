@@ -141,10 +141,28 @@ Stable S3 secret access key across upgrades.
 {{- end }}
 
 {{/*
-In-cluster S3 endpoint URL.
+In-cluster S3 endpoint URL (HTTP, direct to Service — recommended for pods).
+*/}}
+{{- define "garage.s3EndpointInCluster" -}}
+http://{{ include "garage.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.s3.api.port }}
+{{- end }}
+
+{{/*
+S3 endpoint URL written into the upload credentials Secret.
 */}}
 {{- define "garage.s3Endpoint" -}}
-http://{{ include "garage.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.s3.api.port }}
+{{- if .Values.upload.endpoint }}
+{{- .Values.upload.endpoint }}
+{{- else }}
+{{- include "garage.s3EndpointInCluster" . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Short DNS hostname for pods in the same namespace.
+*/}}
+{{- define "garage.s3ServiceDNS" -}}
+http://{{ include "garage.fullname" . }}:{{ .Values.service.s3.api.port }}
 {{- end }}
 
 {{/*

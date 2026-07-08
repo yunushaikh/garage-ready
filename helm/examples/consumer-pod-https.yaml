@@ -1,0 +1,51 @@
+# Example pod that uploads over HTTPS using the testing CA (no TLS errors).
+#
+# Prerequisites:
+#   - cert-manager-testing-ca.yaml applied
+#   - Garage installed with values-https-testing.yaml
+#   - Ingress controller reachable from the pod network
+#
+# The hostAliases entry maps s3.garage.test to the ingress controller ClusterIP.
+# Replace the IP below with your ingress controller service ClusterIP:
+#   kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.spec.clusterIP}'
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: garage-upload-consumer-https
+  namespace: garage
+spec:
+  restartPolicy: Never
+  hostAliases:
+    - ip: "10.0.0.1" # <-- replace with ingress controller ClusterIP
+      hostnames:
+        - s3.garage.test
+  containers:
+    - name: uploader
+      image: amazon/aws-cli:2.22.12
+      envFrom:
+        - secretRef:
+            name: garage-upload-credentials
+      env:
+        - name: AWS_CA_BUNDLE
+          value: /etc/ssl/certs/garage-ca.crt
+      volumeMounts:
+        - name: garage-ca
+          mountPath: /etc/ssl/certs/garage-ca.crt
+          subPath: ca.crt
+          readOnly: true
+      command:
+        - bash
+        - -ec
+        - |
+          echo "Uploading over HTTPS from consumer pod..."
+          echo "hello from https consumer" > /tmp/hello.txt
+          aws s3 cp /tmp/hello.txt "s3://${S3_BUCKET}/hello-from-https-consumer.txt"
+          aws s3 ls "s3://${S3_BUCKET}/"
+  volumes:
+    - name: garage-ca
+      secret:
+        secretName: garage-testing-ca
+        items:
+          - key: tls.crt
+            path: ca.crt

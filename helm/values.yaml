@@ -78,6 +78,9 @@ upload:
   keyName: upload-key
   accessKeyId: "" # auto-generated as GK<hex> if empty
   secretAccessKey: "" # auto-generated if empty
+  # Override endpoint URL in the upload Secret (e.g. https://s3.garage.test for ingress TLS).
+  # Leave empty to use the in-cluster HTTP service DNS name.
+  endpoint: ""
   # When true, run a post-install Job that uploads a test object to verify the setup.
   testUpload:
     enabled: false

@@ -1,5 +1,7 @@
 {{- $accessKeyId := include "garage.upload.accessKeyId" . -}}
 {{- $endpoint := include "garage.s3Endpoint" . -}}
+{{- $endpointInCluster := include "garage.s3EndpointInCluster" . -}}
+{{- $serviceDNS := include "garage.s3ServiceDNS" . -}}
 {{- $region := .Values.garage.s3.region -}}
 {{- $bucket := .Values.upload.bucket -}}
 apiVersion: v1
@@ -12,6 +14,8 @@ data:
   bucket: {{ $bucket | quote }}
   region: {{ $region | quote }}
   endpoint: {{ $endpoint | quote }}
+  endpointInCluster: {{ $endpointInCluster | quote }}
+  serviceDnsShort: {{ $serviceDNS | quote }}
   accessKeyId: {{ $accessKeyId | quote }}
   keyName: {{ .Values.upload.keyName | quote }}
   upload-instructions.txt: |
@@ -20,6 +24,11 @@ data:
     Bucket:     {{ $bucket }}
     Region:     {{ $region }}
     Endpoint:   {{ $endpoint }}
+
+    In-cluster DNS (pods, HTTP — recommended):
+      Same namespace:  {{ $serviceDNS }}
+      Any namespace:   {{ $endpointInCluster }}
+
     Access key: {{ $accessKeyId }}
 
     Credentials secret (mount in your pods):

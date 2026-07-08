@@ -1,0 +1,64 @@
+# cert-manager resources for long-lived HTTPS testing certificates.
+#
+# Prerequisites:
+#   - cert-manager installed in the cluster
+#   - nginx (or another) ingress controller
+#
+# Apply before enabling ingress TLS in the Helm chart:
+#   kubectl apply -f cert-manager-testing-ca.yaml
+#
+# This creates:
+#   - A private CA valid for 10 years (garage-testing-ca secret)
+#   - A server certificate for s3.garage.test valid for 10 years (garage-ingress-tls secret)
+#
+# For production, replace this with a real issuer (e.g. Let's Encrypt ClusterIssuer).
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: garage-testing-root
+  namespace: garage
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: garage-testing-root
+  namespace: garage
+spec:
+  isCA: true
+  commonName: garage-testing-root-ca
+  secretName: garage-testing-ca
+  duration: 87600h
+  renewBefore: 8760h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: garage-testing
+  namespace: garage
+spec:
+  ca:
+    secretName: garage-testing-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: garage-s3
+  namespace: garage
+spec:
+  secretName: garage-ingress-tls
+  issuerRef:
+    name: garage-testing
+    kind: Issuer
+  dnsNames:
+    - s3.garage.test
+  duration: 87600h
+  renewBefore: 8760h
+  privateKey:
+    algorithm: ECDSA
+    size: 256

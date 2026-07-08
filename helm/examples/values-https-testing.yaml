@@ -1,0 +1,32 @@
+# Helm values for HTTPS testing with long-lived certificates.
+#
+# 1. Create namespace and apply the testing CA:
+#      kubectl create namespace garage --dry-run=client -o yaml | kubectl apply -f -
+#      kubectl apply -f cert-manager-testing-ca.yaml
+#      kubectl wait --for=condition=ready certificate/garage-s3 -n garage --timeout=120s
+#
+# 2. Install Garage with ingress + TLS:
+#      helm install garage .. -n garage -f values-https-testing.yaml
+#
+# 3. Point clients/pods at https://s3.garage.test (see README DNS section).
+#
+# For production, use a real certificate issuer instead of the testing CA.
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+  hosts:
+    - host: s3.garage.test
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: garage-ingress-tls
+      hosts:
+        - s3.garage.test
+
+# Override the endpoint written into the upload credentials Secret.
+upload:
+  endpoint: https://s3.garage.test

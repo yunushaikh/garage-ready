@@ -20,4 +20,7 @@ helm show values ./helm
 
 ## Examples
 
-- [`examples/consumer-pod.yaml`](examples/consumer-pod.yaml) — pod that mounts upload credentials and uploads a test object
+- [`examples/consumer-pod.yaml`](examples/consumer-pod.yaml) — HTTP upload from a pod (in-cluster DNS)
+- [`examples/consumer-pod-https.yaml`](examples/consumer-pod-https.yaml) — HTTPS upload with testing CA trusted
+- [`examples/cert-manager-testing-ca.yaml`](examples/cert-manager-testing-ca.yaml) — 10-year testing CA + certificate
+- [`examples/values-https-testing.yaml`](examples/values-https-testing.yaml) — Helm values for ingress TLS
