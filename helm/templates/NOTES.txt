@@ -1,0 +1,41 @@
+Garage is installed and configured for S3 uploads.
+
+1. Get upload credentials:
+
+  kubectl get secret {{ include "garage.uploadSecretName" . }} -n {{ .Release.Namespace }} -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d; echo
+  kubectl get secret {{ include "garage.uploadSecretName" . }} -n {{ .Release.Namespace }} -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d; echo
+
+2. Connection details:
+
+  Bucket:   {{ .Values.upload.bucket }}
+  Region:   {{ .Values.garage.s3.region }}
+  Endpoint: {{ include "garage.s3Endpoint" . }}
+
+  ConfigMap with full instructions:
+    kubectl get configmap {{ include "garage.uploadConfigMapName" . }} -n {{ .Release.Namespace }} -o yaml
+
+3. Upload a test file from your machine (port-forward):
+
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "garage.fullname" . }} 3900:{{ .Values.service.s3.api.port }}
+
+  export AWS_ACCESS_KEY_ID=$(kubectl get secret {{ include "garage.uploadSecretName" . }} -n {{ .Release.Namespace }} -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
+  export AWS_SECRET_ACCESS_KEY=$(kubectl get secret {{ include "garage.uploadSecretName" . }} -n {{ .Release.Namespace }} -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
+  export AWS_DEFAULT_REGION={{ .Values.garage.s3.region }}
+  export AWS_ENDPOINT_URL=http://127.0.0.1:3900
+  aws s3 cp ./myfile.txt s3://{{ .Values.upload.bucket }}/myfile.txt
+
+4. Mount credentials in your application pods:
+
+  envFrom:
+    - secretRef:
+        name: {{ include "garage.uploadSecretName" . }}
+
+  See examples/consumer-pod.yaml for a complete example.
+
+{{- if .Values.garage.singleNode }}
+
+Mode: single-node (bucket and key created automatically at startup)
+{{- else }}
+
+Mode: multi-node (bootstrap job configures layout, bucket, and key permissions)
+{{- end }}

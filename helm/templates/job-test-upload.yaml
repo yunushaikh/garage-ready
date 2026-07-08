@@ -1,0 +1,37 @@
+{{- if .Values.upload.testUpload.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "garage.fullname" . }}-test-upload
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "garage.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: test-upload
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: aws-cli
+          image: amazon/aws-cli:2.22.12
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: {{ include "garage.uploadSecretName" . }}
+          command:
+            - bash
+            - -ec
+            - |
+              echo "Garage upload smoke test" > /tmp/garage-upload-test.txt
+              aws s3 cp /tmp/garage-upload-test.txt "s3://${S3_BUCKET}/garage-upload-test.txt"
+              aws s3 ls "s3://${S3_BUCKET}/"
+              echo "Upload test succeeded."
+{{- end }}

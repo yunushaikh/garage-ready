@@ -1,0 +1,14 @@
+apiVersion: v2
+name: garage
+description: Ready-to-use Garage S3 object storage with bucket and upload credentials pre-configured
+type: application
+version: 0.1.0
+appVersion: "v2.3.0"
+home: https://garagehq.deuxfleurs.fr/
+keywords:
+  - s3
+  - object-storage
+  - garage
+  - self-hosted
+sources:
+  - https://git.deuxfleurs.fr/Deuxfleurs/garage

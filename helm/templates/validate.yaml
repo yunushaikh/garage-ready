@@ -1,0 +1,3 @@
+{{- if and .Values.garage.singleNode (gt (int .Values.deployment.replicaCount) 1) -}}
+{{- fail "garage.singleNode=true requires deployment.replicaCount=1" -}}
+{{- end -}}

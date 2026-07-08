@@ -1,0 +1,23 @@
+# Example workload that mounts Garage upload credentials as environment variables.
+# Replace namespace/release placeholders before applying.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: garage-upload-consumer
+  namespace: garage
+spec:
+  restartPolicy: Never
+  containers:
+    - name: uploader
+      image: amazon/aws-cli:2.22.12
+      envFrom:
+        - secretRef:
+            name: garage-upload-credentials
+      command:
+        - bash
+        - -ec
+        - |
+          echo "Uploading from consumer pod..."
+          echo "hello from consumer" > /tmp/hello.txt
+          aws s3 cp /tmp/hello.txt "s3://${S3_BUCKET}/hello-from-consumer.txt"
+          aws s3 ls "s3://${S3_BUCKET}/"

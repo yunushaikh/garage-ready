@@ -1,0 +1,38 @@
+{{- $accessKeyId := include "garage.upload.accessKeyId" . -}}
+{{- $endpoint := include "garage.s3Endpoint" . -}}
+{{- $region := .Values.garage.s3.region -}}
+{{- $bucket := .Values.upload.bucket -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "garage.uploadConfigMapName" . }}
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+data:
+  bucket: {{ $bucket | quote }}
+  region: {{ $region | quote }}
+  endpoint: {{ $endpoint | quote }}
+  accessKeyId: {{ $accessKeyId | quote }}
+  keyName: {{ .Values.upload.keyName | quote }}
+  upload-instructions.txt: |
+    Garage upload is configured and ready.
+
+    Bucket:     {{ $bucket }}
+    Region:     {{ $region }}
+    Endpoint:   {{ $endpoint }}
+    Access key: {{ $accessKeyId }}
+
+    Credentials secret (mount in your pods):
+      {{ include "garage.uploadSecretName" . }}
+
+    Quick test from a pod in the cluster:
+      export AWS_ACCESS_KEY_ID={{ $accessKeyId }}
+      export AWS_SECRET_ACCESS_KEY=<from secret>
+      export AWS_DEFAULT_REGION={{ $region }}
+      export AWS_ENDPOINT_URL={{ $endpoint }}
+      aws s3 cp /etc/hosts s3://{{ $bucket }}/test.txt
+
+    Mount the secret as envFrom in your workload:
+      envFrom:
+        - secretRef:
+            name: {{ include "garage.uploadSecretName" . }}

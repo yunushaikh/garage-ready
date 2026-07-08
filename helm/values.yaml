@@ -1,0 +1,128 @@
+# Default values for garage-ready Helm chart.
+# Installs a Garage cluster with a bucket and S3 credentials ready for uploads.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: dxflrs/garage
+  tag: "" # defaults to Chart.appVersion
+  pullPolicy: IfNotPresent
+
+initImage:
+  repository: busybox
+  tag: "1.36"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Single-node mode (recommended for dev/small clusters).
+# Uses `garage server --single-node --default-bucket` to auto-create layout, bucket, and key.
+garage:
+  singleNode: true
+  replicationFactor: 1
+  dbEngine: sqlite
+  blockSize: "1048576"
+  compressionLevel: "1"
+  rpcBindAddr: "[::]:3901"
+  rpcSecret: "" # auto-generated if empty
+  adminToken: "" # auto-generated if empty
+  s3:
+    region: garage
+    rootDomain: ".s3.garage.localhost"
+  web:
+    rootDomain: ".web.garage.localhost"
+    index: index.html
+
+deployment:
+  replicaCount: 1
+  podManagementPolicy: OrderedReady
+
+persistence:
+  enabled: true
+  meta:
+    storageClass: ""
+    size: 100Mi
+  data:
+    storageClass: ""
+    size: 1Gi
+
+service:
+  type: ClusterIP
+  annotations: {}
+  s3:
+    api:
+      port: 3900
+    web:
+      port: 3902
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: s3.garage.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Upload bucket and credentials — populated into a Kubernetes Secret on install.
+upload:
+  bucket: uploads
+  keyName: upload-key
+  accessKeyId: "" # auto-generated as GK<hex> if empty
+  secretAccessKey: "" # auto-generated if empty
+  # When true, run a post-install Job that uploads a test object to verify the setup.
+  testUpload:
+    enabled: false
+
+# Multi-node bootstrap (only when garage.singleNode=false).
+bootstrap:
+  zone: dc1
+  capacity: 1Gi
+  # Garage node index used for bootstrap exec (garage-0 by default).
+  nodeIndex: 0
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  runAsNonRoot: true
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+livenessProbe:
+  exec:
+    command:
+      - /garage
+      - status
+  initialDelaySeconds: 15
+  periodSeconds: 30
+  timeoutSeconds: 10
+
+readinessProbe:
+  exec:
+    command:
+      - /garage
+      - status
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  timeoutSeconds: 10

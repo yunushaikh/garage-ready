@@ -1,0 +1,90 @@
+{{- if not .Values.garage.singleNode }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "garage.fullname" . }}-bootstrap
+  labels:
+    {{- include "garage.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        {{- include "garage.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: bootstrap
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "garage.fullname" . }}-bootstrap
+      containers:
+        - name: bootstrap
+          image: bitnami/kubectl:1.33.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: RELEASE_NAME
+              value: {{ include "garage.fullname" . | quote }}
+            - name: REPLICAS
+              value: {{ .Values.deployment.replicaCount | quote }}
+            - name: ZONE
+              value: {{ .Values.bootstrap.zone | quote }}
+            - name: CAPACITY
+              value: {{ .Values.bootstrap.capacity | quote }}
+            - name: BUCKET
+              value: {{ .Values.upload.bucket | quote }}
+            - name: KEY_NAME
+              value: {{ .Values.upload.keyName | quote }}
+            - name: ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garage.uploadSecretName" . }}
+                  key: AWS_ACCESS_KEY_ID
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garage.uploadSecretName" . }}
+                  key: AWS_SECRET_ACCESS_KEY
+          command:
+            - bash
+            - -ec
+            - |
+              set -o pipefail
+              LEADER="${RELEASE_NAME}-{{ .Values.bootstrap.nodeIndex }}"
+
+              echo "Waiting for Garage leader pod ${LEADER}..."
+              kubectl wait --for=condition=ready "pod/${LEADER}" -n "${NAMESPACE}" --timeout=600s
+
+              echo "Waiting for Garage CLI..."
+              for _ in $(seq 1 60); do
+                if kubectl exec -n "${NAMESPACE}" "${LEADER}" -- /garage status >/dev/null 2>&1; then
+                  break
+                fi
+                sleep 5
+              done
+
+              echo "Assigning cluster layout..."
+              for i in $(seq 0 $((REPLICAS - 1))); do
+                POD="${RELEASE_NAME}-${i}"
+                NODE_ID="$(kubectl exec -n "${NAMESPACE}" "${POD}" -- /garage node id | awk '{print $1}')"
+                echo "  ${POD} -> ${NODE_ID}"
+                kubectl exec -n "${NAMESPACE}" "${LEADER}" -- /garage layout assign \
+                  -z "${ZONE}" -c "${CAPACITY}" "${NODE_ID}" || true
+              done
+
+              kubectl exec -n "${NAMESPACE}" "${LEADER}" -- /garage layout apply --version 1
+
+              echo "Importing upload key and creating bucket..."
+              kubectl exec -n "${NAMESPACE}" "${LEADER}" -- /garage key import \
+                "${ACCESS_KEY}" "${SECRET_KEY}" -n "${KEY_NAME}" --yes || true
+              kubectl exec -n "${NAMESPACE}" "${LEADER}" -- /garage bucket create "${BUCKET}" || true
+              kubectl exec -n "${NAMESPACE}" "${LEADER}" -- /garage bucket allow \
+                --read --write --owner --key "${KEY_NAME}" "${BUCKET}"
+
+              echo "Bootstrap complete."
+              kubectl exec -n "${NAMESPACE}" "${LEADER}" -- /garage bucket info "${BUCKET}"
+{{- end }}
